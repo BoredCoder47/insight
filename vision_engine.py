@@ -15,8 +15,7 @@ class VisionEngine:
             max_num_faces=2,
             refine_landmarks=True,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-            use_gpu=False  # Force CPU mode
+            min_tracking_confidence=0.5
         )
 
         self.last_identity_check = 0
@@ -36,6 +35,7 @@ class VisionEngine:
 
         if results.multi_face_landmarks:
             face_present = True
+
             if len(results.multi_face_landmarks) > 1:
                 multiple_faces = True
 
