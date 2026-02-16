@@ -10,7 +10,7 @@ class FaceVerifier:
             name="buffalo_l",
             providers=["CPUExecutionProvider"]
         )
-        self.app.prepare(ctx_id=0)
+        self.app.prepare(ctx_id=-1)
         self.reference_embedding = None
 
     def register_reference(self, frame):
