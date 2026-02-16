@@ -1,3 +1,6 @@
+import os
+os.environ["MEDIAPIPE_DISABLE_GPU"] = "1"
+
 import cv2
 import mediapipe as mp
 import time
@@ -12,11 +15,12 @@ class VisionEngine:
             max_num_faces=2,
             refine_landmarks=True,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
+            use_gpu=False  # Force CPU mode
         )
 
         self.last_identity_check = 0
-        self.identity_interval = 5  # seconds
+        self.identity_interval = 5
 
         self.looking_away_duration = 0
         self.last_gaze_time = time.time()
@@ -37,7 +41,6 @@ class VisionEngine:
 
             landmarks = results.multi_face_landmarks[0]
 
-            # Simple gaze estimation using iris landmarks
             left_iris = landmarks.landmark[468]
             right_iris = landmarks.landmark[473]
 
