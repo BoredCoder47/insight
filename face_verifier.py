@@ -1,61 +1,68 @@
+import face_recognition
 import numpy as np
-from insightface.app import FaceAnalysis
 
 
 class FaceVerifier:
-    def __init__(self, threshold=0.65):
+    def __init__(self, threshold=0.5):
         self.threshold = threshold
-        self.app = FaceAnalysis(
-            name="buffalo_l",
-            providers=["CPUExecutionProvider"]
-        )
-        self.app.prepare(ctx_id=-1)
-        self.reference_embedding = None
+        self.reference_encoding = None
 
     def register_reference(self, frame):
-        faces = self.app.get(frame)
+        rgb = frame[:, :, ::-1]
+        encodings = face_recognition.face_encodings(rgb)
 
-        if len(faces) != 1:
+        if len(encodings) != 1:
             return False
 
-        self.reference_embedding = faces[0].embedding
+        self.reference_encoding = encodings[0]
         return True
 
     def analyze_frame(self, frame):
-        faces = self.app.get(frame)
+        rgb = frame[:, :, ::-1]
 
-        face_present = len(faces) > 0
-        multiple_faces = len(faces) > 1
+        face_locations = face_recognition.face_locations(rgb)
+        encodings = face_recognition.face_encodings(rgb, face_locations)
+        landmarks = face_recognition.face_landmarks(rgb)
+
+        face_present = len(face_locations) > 0
+        multiple_faces = len(face_locations) > 1
         looking_away = False
         identity = None
 
-        if len(faces) == 1:
-            face = faces[0]
-
+        if len(face_locations) == 1:
             # Identity check
-            if self.reference_embedding is not None:
-                score = self._cosine_similarity(
-                    face.embedding,
-                    self.reference_embedding
+            if self.reference_encoding is not None:
+                distance = np.linalg.norm(
+                    encodings[0] - self.reference_encoding
                 )
 
                 identity = {
-                    "match": score >= self.threshold,
-                    "score": float(score)
+                    "match": distance < self.threshold,
+                    "score": float(1 - distance)
                 }
 
             # Head turn detection (simple heuristic)
-            left_eye = face.kps[0]
-            right_eye = face.kps[1]
-            nose = face.kps[2]
+            if landmarks:
+                left_eye = landmarks[0]["left_eye"]
+                right_eye = landmarks[0]["right_eye"]
+                nose_bridge = landmarks[0]["nose_bridge"]
 
-            eye_center_x = (left_eye[0] + right_eye[0]) / 2
-            eye_width = abs(right_eye[0] - left_eye[0])
+                eye_center_x = (
+                    np.mean([p[0] for p in left_eye]) +
+                    np.mean([p[0] for p in right_eye])
+                ) / 2
 
-            if eye_width > 0:
-                ratio = (nose[0] - eye_center_x) / eye_width
-                if abs(ratio) > 0.25:
-                    looking_away = True
+                eye_width = abs(
+                    np.mean([p[0] for p in right_eye]) -
+                    np.mean([p[0] for p in left_eye])
+                )
+
+                nose_x = np.mean([p[0] for p in nose_bridge])
+
+                if eye_width > 0:
+                    ratio = (nose_x - eye_center_x) / eye_width
+                    if abs(ratio) > 0.35:
+                        looking_away = True
 
         return {
             "face_present": face_present,
@@ -63,9 +70,3 @@ class FaceVerifier:
             "looking_away": looking_away,
             "identity": identity
         }
-
-    def _cosine_similarity(self, a, b):
-        return float(
-            np.dot(a, b) /
-            (np.linalg.norm(a) * np.linalg.norm(b))
-        )

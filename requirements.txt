@@ -1,7 +1,6 @@
 fastapi
 uvicorn
 python-multipart
-numpy==1.24.4
-onnxruntime
-insightface==0.7.3
+numpy
 opencv-python-headless
+face_recognition
